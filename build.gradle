@@ -1,0 +1,17 @@
+plugins {
+    id 'java'
+}
+
+group 'kafka'
+version '0.0.1'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // https://mvnrepository.com/artifact/org.apache.kafka/kafka
+    compile group: 'org.apache.kafka', name: 'kafka_2.12', version: '2.3.0'
+}
