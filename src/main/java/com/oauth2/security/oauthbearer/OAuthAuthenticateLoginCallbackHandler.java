@@ -3,9 +3,7 @@ package com.oauth2.security.oauthbearer;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule;
-import org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallback;
-import org.apache.kafka.common.security.oauthbearer.internals.unsecured.OAuthBearerValidationResult;
-import org.apache.kafka.common.utils.Time;
+import org.apache.kafka.common.security.oauthbearer.OAuthBearerTokenCallback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,12 +16,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class OauthAuthenticateValidatorCallbackHandler implements AuthenticateCallbackHandler {
-    private final Logger log = LoggerFactory.getLogger(OauthAuthenticateValidatorCallbackHandler.class);
-    private List<AppConfigurationEntry> jaasConfigEntries;
+public class OAuthAuthenticateLoginCallbackHandler implements AuthenticateCallbackHandler {
+    private final Logger log = LoggerFactory.getLogger(OAuthAuthenticateLoginCallbackHandler.class);
     private Map<String, String> moduleOptions = null;
     private boolean configured = false;
-    private Time time = Time.SYSTEM;
 
     @Override
     public void configure(Map<String, ?> map, String saslMechanism, List<AppConfigurationEntry> jaasConfigEntries) {
@@ -34,6 +30,7 @@ public class OauthAuthenticateValidatorCallbackHandler implements AuthenticateCa
                     String.format("Must supply exactly 1 non-null JAAS mechanism configuration (size was %d)",
                             jaasConfigEntries.size()));
         this.moduleOptions = Collections.unmodifiableMap((Map<String, String>) jaasConfigEntries.get(0).getOptions());
+
         configured = true;
     }
 
@@ -50,10 +47,9 @@ public class OauthAuthenticateValidatorCallbackHandler implements AuthenticateCa
         if (!isConfigured())
             throw new IllegalStateException("Callback handler not configured");
         for (Callback callback : callbacks) {
-            if (callback instanceof OAuthBearerValidatorCallback)
+            if (callback instanceof OAuthBearerTokenCallback)
                 try {
-                    OAuthBearerValidatorCallback validationCallback = (OAuthBearerValidatorCallback) callback;
-                    handleCallback(validationCallback);
+                    handleCallback((OAuthBearerTokenCallback) callback);
                 } catch (KafkaException e) {
                     throw new IOException(e.getMessage(), e);
                 }
@@ -62,22 +58,16 @@ public class OauthAuthenticateValidatorCallbackHandler implements AuthenticateCa
         }
     }
 
-    private void handleCallback(OAuthBearerValidatorCallback callback){
-        String accessToken = callback.tokenValue();
-        if (accessToken == null)
-            throw new IllegalArgumentException("Callback missing required token value");
+    private void handleCallback(OAuthBearerTokenCallback callback){
+        if (callback.token() != null)
+            throw new IllegalArgumentException("Callback had a token already");
 
-        log.info("Trying to introspect Token!");
-        OauthBearerTokenJwt token = OauthHttpCalls.introspectBearer(accessToken);
-        log.info("Trying to introspected");
-
-        // Implement Check Expire Token..
-        long now = time.milliseconds();
-        if(now > token.expirationTime()){
-            OAuthBearerValidationResult.newFailure("Expired Token, needs refresh!");
+        log.info("Try to acquire token!");
+        OAuthBearerTokenJwt token = OAuthHttpCalls.login(this.moduleOptions);
+        log.info("Retrieved token..");
+        if(token == null){
+            throw new IllegalArgumentException("Null token returned from server");
         }
-
-        log.info("Validated! token..");
         callback.token(token);
     }
 

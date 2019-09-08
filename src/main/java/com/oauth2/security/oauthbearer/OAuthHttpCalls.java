@@ -21,23 +21,23 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Map;
 
-public class OauthHttpCalls {
+public class OAuthHttpCalls {
 
-    private static final Logger log = LoggerFactory.getLogger(OauthHttpCalls.class);
+    private static final Logger log = LoggerFactory.getLogger(OAuthHttpCalls.class);
 
-    private static final String OAUTH_LOGIN_SERVER = (String) getPropertyValue("OAUTH_LOGIN_SERVER", "");
-    private static final String OAUTH_LOGIN_ENDPOINT = (String) getPropertyValue("OAUTH_LOGIN_ENDPOINT", "");
-    private static final String OAUTH_LOGIN_GRANT_TYPE = (String) getPropertyValue("OAUTH_LOGIN_GRANT_TYPE", "");
-    private static final String OAUTH_LOGIN_SCOPE = (String) getPropertyValue("OAUTH_LOGIN_SCOPE", "");
+    private static String OAUTH_LOGIN_SERVER;
+    private static String OAUTH_LOGIN_ENDPOINT;
+    private static String OAUTH_LOGIN_GRANT_TYPE;
+    private static String OAUTH_LOGIN_SCOPE;
 
-    private static final String OAUTH_INTROSPECT_SERVER = (String) getPropertyValue("OAUTH_INTROSPECT_SERVER", "");
-    private static final String OAUTH_INTROSPECT_ENDPOINT = (String) getPropertyValue("OAUTH_INTROSPECT_ENDPOINT", "");
+    private static String OAUTH_INTROSPECT_SERVER;
+    private static String OAUTH_INTROSPECT_ENDPOINT;
 
-    private static final String OAUTH_LOGIN_AUTHORIZATION = (String) getPropertyValue("OAUTH_AUTHORIZATION", "");
-    private static final String OAUTH_INTROSPECT_AUTHORIZATION = (String) getPropertyValue("OAUTH_INTROSPECT_AUTHORIZATION", "");
+    private static String OAUTH_LOGIN_AUTHORIZATION;
+    private static String OAUTH_INTROSPECT_AUTHORIZATION;
 
-    private static final boolean OAUTH_ACCEPT_UNSECURE_SERVER = (Boolean) getPropertyValue("OAUTH_ACCEPT_UNSECURE_SERVER", false);
-    private static final boolean OAUTH_WITH_SSL = (Boolean) getPropertyValue("OAUTH_WITH_SSL", true);
+    private static boolean OAUTH_ACCEPT_UNSECURE_SERVER;
+    private static boolean OAUTH_WITH_SSL;
     private static Time time = Time.SYSTEM;
 
     public static void acceptUnsecureServer(){
@@ -67,9 +67,10 @@ public class OauthHttpCalls {
         }
     }
 
-    public static OauthBearerTokenJwt login(String clientId) {
-        OauthBearerTokenJwt result = null;
+    public static OAuthBearerTokenJwt login(Map<String, String> options) {
+        OAuthBearerTokenJwt result = null;
         try {
+            setPropertyValues(options);
             acceptUnsecureServer();
             long callTime = time.milliseconds();
 
@@ -79,9 +80,9 @@ public class OauthHttpCalls {
             String postDataStr = grantType + "&" + scope;
 
             log.info("Try to login with oauth!");
-            System.out.println("Oauth Login Server:" + OAUTH_LOGIN_SERVER);
-            System.out.println("Oauth Login EndPoint:" + OAUTH_LOGIN_ENDPOINT);
-            System.out.println("Oauth Login Authorization:" + OAUTH_LOGIN_AUTHORIZATION);
+            log.info("Oauth Login Server:" + OAUTH_LOGIN_SERVER);
+            log.info("Oauth Login EndPoint:" + OAUTH_LOGIN_ENDPOINT);
+            log.info("Oauth Login Authorization:" + OAUTH_LOGIN_AUTHORIZATION);
 
             Map<String, Object> resp = null;
             if(OAUTH_WITH_SSL){
@@ -93,7 +94,7 @@ public class OauthHttpCalls {
             if(resp != null){
                 String accessToken = (String) resp.get("access_token");
                 long expiresIn = ((Integer) resp.get("expires_in")).longValue();
-                result = new OauthBearerTokenJwt(accessToken, expiresIn, callTime, clientId);
+                result = new OAuthBearerTokenJwt(accessToken, expiresIn, callTime, null);
             } else {
                 throw new Exception("with resp null at login");
             }
@@ -103,9 +104,26 @@ public class OauthHttpCalls {
         return result;
     }
 
-    public static OauthBearerTokenJwt introspectBearer(String accessToken){
-        OauthBearerTokenJwt result = null;
+    private static void setPropertyValues(Map<String, String> options) {
+        OAUTH_LOGIN_SERVER = (String) getPropertyValue(options, "OAUTH_LOGIN_SERVER", "");
+        OAUTH_LOGIN_ENDPOINT = (String) getPropertyValue(options, "OAUTH_LOGIN_ENDPOINT", "");
+        OAUTH_LOGIN_GRANT_TYPE = (String) getPropertyValue(options, "OAUTH_LOGIN_GRANT_TYPE", "");
+        OAUTH_LOGIN_SCOPE = (String) getPropertyValue(options, "OAUTH_LOGIN_SCOPE", "");
+
+        OAUTH_INTROSPECT_SERVER = (String) getPropertyValue(options, "OAUTH_INTROSPECT_SERVER", "");
+        OAUTH_INTROSPECT_ENDPOINT = (String) getPropertyValue(options, "OAUTH_INTROSPECT_ENDPOINT", "");
+
+        OAUTH_LOGIN_AUTHORIZATION = (String) getPropertyValue(options, "OAUTH_AUTHORIZATION", "");
+        OAUTH_INTROSPECT_AUTHORIZATION = (String) getPropertyValue(options, "OAUTH_INTROSPECT_AUTHORIZATION", "");
+
+        OAUTH_ACCEPT_UNSECURE_SERVER = (Boolean) getPropertyValue(options, "OAUTH_ACCEPT_UNSECURE_SERVER", false);
+        OAUTH_WITH_SSL = (Boolean) getPropertyValue(options, "OAUTH_WITH_SSL", true);
+    }
+
+    public static OAuthBearerTokenJwt introspectBearer(Map<String, String> options, String accessToken){
+        OAuthBearerTokenJwt result = null;
         try {
+            setPropertyValues(options);
             //Mount POST data
             String token = "token=" +  accessToken;
 
@@ -122,7 +140,7 @@ public class OauthHttpCalls {
             }
             if(resp != null){
                 if((boolean) resp.get("active")){
-                    result = new OauthBearerTokenJwt(resp, accessToken);
+                    result = new OAuthBearerTokenJwt(resp, accessToken);
                 }else{
                     throw new Exception("Expired Token");
                 }
@@ -202,12 +220,12 @@ public class OauthHttpCalls {
         return null;
     }
 
-    private static Object getPropertyValue(String propertyName, Object defaultValue) {
+    private static Object getPropertyValue(Map<String, String> options, String propertyName, Object defaultValue) {
         Object result = null;
-        String env = System.getProperty(propertyName);
+        String env = options.get(propertyName) != null ? options.get(propertyName): System.getProperty(propertyName);
         if(env == null){
             result = defaultValue;
-        }else{
+        } else{
             if(defaultValue instanceof Boolean){
                 result = Boolean.valueOf(env);
             }else if(defaultValue instanceof Integer){

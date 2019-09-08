@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
-public class OauthBearerTokenJwt implements OAuthBearerToken {
+public class OAuthBearerTokenJwt implements OAuthBearerToken {
 
     private String value;
     private long lifetimeMs;
@@ -20,7 +20,7 @@ public class OauthBearerTokenJwt implements OAuthBearerToken {
     private Set<String> publicFields;
     private Set<String> privateFields;
 
-    public OauthBearerTokenJwt(String accessToken, long lifeTimeS, long startTimeMs, String principalName){
+    public OAuthBearerTokenJwt(String accessToken, long lifeTimeS, long startTimeMs, String principalName){
         super();
         this.value = accessToken;
         this.principalName= principalName;
@@ -29,7 +29,7 @@ public class OauthBearerTokenJwt implements OAuthBearerToken {
         this.expirationTime = startTimeMs + (lifeTimeS * 1000);
     }
 
-    public OauthBearerTokenJwt(Map<String, Object> jwtToken, String accessToken){
+    public OAuthBearerTokenJwt(Map<String, Object> jwtToken, String accessToken){
         super();
         this.value = accessToken;
         this.principalName = (String) jwtToken.get("sub");
@@ -98,7 +98,7 @@ public class OauthBearerTokenJwt implements OAuthBearerToken {
 
     @Override
     public String toString() {
-        return "OauthBearerTokenJwt{" +
+        return "OAuthBearerTokenJwt{" +
                 "value='" + value + '\'' +
                 ", lifetimeMs=" + lifetimeMs +
                 ", principalName='" + principalName + '\'' +
