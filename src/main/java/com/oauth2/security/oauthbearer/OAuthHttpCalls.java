@@ -94,9 +94,10 @@ public class OAuthHttpCalls {
             if(resp != null){
                 String accessToken = (String) resp.get("access_token");
                 long expiresIn = ((Integer) resp.get("expires_in")).longValue();
-                result = new OAuthBearerTokenJwt(accessToken, expiresIn, callTime, null);
+                String clientId = (String) resp.get("client_id");
+                result = new OAuthBearerTokenJwt(accessToken, expiresIn, callTime, clientId);
             } else {
-                throw new Exception("with resp null at login");
+                throw new Exception("Null response at login");
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -223,6 +224,9 @@ public class OAuthHttpCalls {
     private static Object getPropertyValue(Map<String, String> options, String propertyName, Object defaultValue) {
         Object result = null;
         String env = options.get(propertyName) != null ? options.get(propertyName): System.getProperty(propertyName);
+        if ("OAUTH_AUTHORIZATION".equals(propertyName) || "OAUTH_INTROSPECT_AUTHORIZATION".equals(propertyName)) {
+            env = env.replace("%20", " ");
+        }
         if(env == null){
             result = defaultValue;
         } else{
